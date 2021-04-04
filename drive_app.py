@@ -8,7 +8,7 @@ import numpy as np
 from PIL import Image
 import streamlit as st
 import tempfile
-from nudenet import NudeDetector
+
 
 eye_classifier = cv2.CascadeClassifier(cv2.data.haarcascades+'haarcascade_eye.xml')
 smile_classifier = cv2.CascadeClassifier(cv2.data.haarcascades+'haarcascade_smile.xml')
