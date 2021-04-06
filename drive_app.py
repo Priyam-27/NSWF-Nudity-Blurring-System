@@ -348,29 +348,29 @@ def main():
 					elif choice_type == 'Eyes':
 						result_image= blur_eyes(image)
 						st.image(result_image, use_column_width=True)
-						st.info(f'{choice_type} of the image got blurred')
+# 						st.info(f'{choice_type} of the image got blurred')
 						pil_img = Image.fromarray(result_image)
 						st.markdown(get_image_download_link(pil_img), unsafe_allow_html=True)
-						if blur_eyes(image) == 'No Eyes Detected':
-							st.info('No Eyes Detected')
+# 						if blur_eyes(image) == 'No Eyes Detected':
+# 							st.info('No Eyes Detected')
 						# st.info(blur_eyes(image))	
 					elif choice_type == 'Face':
 						result_image= face_blur(image)
 						st.image(result_image, use_column_width=True)
-						st.info(f'{choice_type} of the image got blurred')
+# 						st.info(f'{choice_type} of the image got blurred')
 						pil_img = Image.fromarray(result_image)
 						st.markdown(get_image_download_link(pil_img), unsafe_allow_html=True)
-						if face_blur(image) == 'No Face Detected':
-							st.info('No Face Detected')
+# 						if face_blur(image) == 'No Face Detected':
+# 							st.info('No Face Detected')
 						# st.info(blur_face(image))
 					elif choice_type == 'Smile':
 						result_image= blur_smile(image)
 						st.image(result_image, use_column_width=True)
-						st.info(f'{choice_type} of the image got blurred')
+# 						st.info(f'{choice_type} of the image got blurred')
 						pil_img = Image.fromarray(result_image)
 						st.markdown(get_image_download_link(pil_img), unsafe_allow_html=True)
-						if blur_smile(image) == 'No Smile Detected':
-							st.info('No Smile Detected')
+# 						if blur_smile(image) == 'No Smile Detected':
+# 							st.info('No Smile Detected')
 						# st.info(blur_smile(image))
 					elif choice_type == 'Nudity':
 						result_image, label, confidence= nudity_blur(image, cfg_file_path, weights_file_path, names_file_path)
