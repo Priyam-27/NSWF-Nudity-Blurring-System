@@ -67,7 +67,7 @@ def get_image_download_link(img):
 	buffered = BytesIO()
 	img.save(buffered, format="PNG")
 	img_str = base64.b64encode(buffered.getvalue()).decode()
-	href = f'<a href="data:file/jpg;base64,{img_str}">Download result</a>'
+	href = f'<a href="data:file/csv;base64,{img_str}" download="image.png">Download result</a>'
 	return href
 
 # @st.cache
