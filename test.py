@@ -5,9 +5,6 @@ import numpy as np
 from PIL import Image
 import streamlit as st
 import tempfile
-import pytesseract
-import pdf2image
-from pytesseract import Output
 from io import BytesIO
 import base64
 import requests
