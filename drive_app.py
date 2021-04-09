@@ -42,7 +42,9 @@ def download_file_from_google_drive(id, destination):
 
     save_response_content(response, destination)  
 
-id = '1Jz6bmv5AfOq-A0DD_SxevcxSq7VRSEtG'
+# https://drive.google.com/file/d/1uCz2SgNPoGmz8PTRN4rBnx5aKB8SY03Y/view?usp=sharing
+
+id = '1uCz2SgNPoGmz8PTRN4rBnx5aKB8SY03Y'
 destination = 'yolo.weights'
 
 
