@@ -5,6 +5,9 @@ import numpy as np
 from PIL import Image
 import streamlit as st
 import tempfile
+import pytesseract
+import pdf2image
+from pytesseract import Output
 from io import BytesIO
 import base64
 import requests
@@ -12,14 +15,6 @@ import requests
 eye_classifier = cv2.CascadeClassifier(cv2.data.haarcascades+'haarcascade_eye.xml')
 smile_classifier = cv2.CascadeClassifier(cv2.data.haarcascades+'haarcascade_smile.xml')
 
-# pytesseract.pytesseract.tesseract_cmd =r'C:\\Program Files\\Tesseract-OCR\\tesseract.exe'
-# poppler_path=r'C:\\poppler\\poppler-21.03.0\\Library\\bin'
-
-# cfg_file_path='yolov3_last_training.cfg'
-# weights_file_path='yolov3_training_last.weights'
-# names_file_path = 'names.names'
-
-# word_list = ['what', 'want', 'You', 'you', 'know', "touch", 'those', 'Data', 'data']        # list of words to be masked
 
 def get_confirm_token(response):
     for key, value in response.cookies.items():
@@ -68,7 +63,6 @@ def get_image_download_link(img):
 	buffered = BytesIO()
 	img.save(buffered, format="PNG")
 	img_str = base64.b64encode(buffered.getvalue()).decode()
-	# href = f'<a href="data:file/png;base64,{img_str}download="myfilename.csv">Download result</a>'
 	href = f'<a href="data:file/csv;base64,{img_str}" download="image.png">Download result</a>'
 	return href
 def nudity_blur(img, cfg_file, weight_file, name_file):
@@ -114,14 +108,11 @@ def nudity_blur(img, cfg_file, weight_file, name_file):
 	labels=[]
 	conf=[]
 	indices= np.array(cv2.dnn.NMSBoxes(boxes, confidences, 0.05,0.4))
-#     indices = np.array(index)
 	for i in indices.flatten():
 		x,y,w,h = boxes[i]                              # returns coordinates
 		label = str(classes[class_ids[i]])              # returns label for each image
 		confidence = str(round(confidences[i],2))       # returns confidence for each label
-        # make blur
-      
-        #roi = img[y:y+h, x:x+w]
+
 		img[y:y+h, x:x+w]=cv2.medianBlur(img[y:y+h, x:x+w], ksize=201)
 		labels.append(label)
 		conf.append(confidence)
@@ -224,23 +215,90 @@ def main():
 				option_F = st.sidebar.checkbox('Face')
 				option_S = st.sidebar.checkbox('Smile')
 				option_N = st.sidebar.checkbox('Nudity')
-				# option_T = st.sidebar.checkbox('Text')
 
 				if st.button('Process'):
-					if option_E and option_F:
+					if option_O and any([option_E, option_F, option_N, option_S]):
+						st.warning('Cannot show Original and Masked image simultaneously')
+
+					elif option_N and option_E and option_F and option_S:
 						vf = cv2.VideoCapture(tfile.name)
 						stframe = st.empty()
 
 						while vf.isOpened():
 							ret, frame = vf.read()
-	    			# if frame is read correctly ret is True
 							if not ret:
 								print("Can't receive frame (stream end?). Exiting ...")
 								break
-							# if frame == None:
-							# 	pass
 							frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-							stframe.image(blur_face(frame))
+							image,label, conf =nudity_blur(frame, cfg_file_path, weights_file_path, names_file_path)
+							stframe.image(face_blur(frame))
+
+					elif option_N and option_E and option_F:
+						vf = cv2.VideoCapture(tfile.name)
+						stframe = st.empty()
+
+						while vf.isOpened():
+							ret, frame = vf.read()
+							if not ret:
+								print("Can't receive frame (stream end?). Exiting ...")
+								break
+							frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+							image,label, conf =nudity_blur(frame, cfg_file_path, weights_file_path, names_file_path)
+							stframe.image(face_blur(image))
+
+					elif option_N and option_S and option_F:
+						vf = cv2.VideoCapture(tfile.name)
+						stframe = st.empty()
+
+						while vf.isOpened():
+							ret, frame = vf.read()
+							if not ret:
+								print("Can't receive frame (stream end?). Exiting ...")
+								break
+							frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+							image,label, conf =nudity_blur(frame, cfg_file_path, weights_file_path, names_file_path)
+							stframe.image(face_blur(image))
+
+					elif option_N and option_E and option_S:
+						vf = cv2.VideoCapture(tfile.name)
+						stframe = st.empty()
+
+						while vf.isOpened():
+							ret, frame = vf.read()
+							if not ret:
+								print("Can't receive frame (stream end?). Exiting ...")
+								break
+							frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+							image,label, conf =nudity_blur(frame, cfg_file_path, weights_file_path, names_file_path)
+							stframe.image(blur_smile_video(blur_eyes_video(image)))
+
+					elif option_F and option_E and option_S:
+						vf = cv2.VideoCapture(tfile.name)
+						stframe = st.empty()
+
+						while vf.isOpened():
+							ret, frame = vf.read()
+							if not ret:
+								print("Can't receive frame (stream end?). Exiting ...")
+								break
+							frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+							image,label, conf =nudity_blur(frame, cfg_file_path, weights_file_path, names_file_path)
+							stframe.image(face_blur(image))
+
+
+
+
+					elif option_E and option_F:
+						vf = cv2.VideoCapture(tfile.name)
+						stframe = st.empty()
+
+						while vf.isOpened():
+							ret, frame = vf.read()
+							if not ret:
+								print("Can't receive frame (stream end?). Exiting ...")
+								break
+							frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+							stframe.image(face_blur(frame))
 
 					elif option_S and option_F:
 						vf = cv2.VideoCapture(tfile.name)
@@ -248,14 +306,11 @@ def main():
 
 						while vf.isOpened():
 							ret, frame = vf.read()
-	    			# if frame is read correctly ret is True
 							if not ret:
 								print("Can't receive frame (stream end?). Exiting ...")
 								break
-							# if frame == None:
-							# 	pass
 							frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-							stframe.image(blur_face(frame))
+							stframe.image(face_blur(frame))
 
 					elif option_N and option_F:
 						vf = cv2.VideoCapture(tfile.name)
@@ -263,12 +318,9 @@ def main():
 
 						while vf.isOpened():
 							ret, frame = vf.read()
-	    			# if frame is read correctly ret is True
 							if not ret:
 								print("Can't receive frame (stream end?). Exiting ...")
 								break
-							# if frame == None:
-							# 	pass
 							frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 							image,label, conf =nudity_blur(frame, cfg_file_path, weights_file_path, names_file_path)
 							stframe.image(face_blur(image))
@@ -279,12 +331,9 @@ def main():
 
 						while vf.isOpened():
 							ret, frame = vf.read()
-	    			# if frame is read correctly ret is True
 							if not ret:
 								print("Can't receive frame (stream end?). Exiting ...")
 								break
-							# if frame == None:
-							# 	pass
 							frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 							image,label, conf =nudity_blur(frame, cfg_file_path, weights_file_path, names_file_path)
 							stframe.image(blur_eyes_video(image))
@@ -295,32 +344,25 @@ def main():
 
 						while vf.isOpened():
 							ret, frame = vf.read()
-	    			# if frame is read correctly ret is True
 							if not ret:
 								print("Can't receive frame (stream end?). Exiting ...")
 								break
-							# if frame == None:
-							# 	pass
 							frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 							image,label, conf =nudity_blur(frame, cfg_file_path, weights_file_path, names_file_path)
 							stframe.image(blur_smile_video(image))	
 
-					
+					elif option_E and option_S:
+						vf = cv2.VideoCapture(tfile.name)
+						stframe = st.empty()
 
-					elif option_O and option_E:
-						st.warning('Cannot show Original and Masked image simultaneously')
-
-					elif option_O and option_F:
-						st.warning('Cannot show Original and Masked image simultaneously')
-
-					elif option_O and option_N:
-						st.warning('Cannot show Original and Masked image simultaneously')
-
-					elif option_O and option_S:
-						st.warning('Cannot show Original and Masked image simultaneously')
-
-	
+						while vf.isOpened():
+							ret, frame = vf.read()
+							if not ret:
+								print("Can't receive frame (stream end?). Exiting ...")
+								break
+							frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 							
+							stframe.image(blur_eyes_video(blur_smile_video(image)))
 
 
 
@@ -330,12 +372,9 @@ def main():
 
 						while vf.isOpened():
 							ret, frame = vf.read()
-	    			# if frame is read correctly ret is True
 							if not ret:
 								print("Can't receive frame (stream end?). Exiting ...")
 								break
-							# if frame == None:
-							# 	pass
 							frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 							stframe.image(frame)
 
@@ -345,12 +384,9 @@ def main():
 
 						while vf.isOpened():
 							ret, frame = vf.read()
-	    			# if frame is read correctly ret is True
 							if not ret:
 								print("Can't receive frame (stream end?). Exiting ...")
 								break
-							# if frame == None:
-							# 	pass
 							frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 							stframe.image(blur_eyes_video(frame))
 
@@ -361,12 +397,9 @@ def main():
 
 						while vf.isOpened():
 							ret, frame = vf.read()
-	    			# if frame is read correctly ret is True
 							if not ret:
 								print("Can't receive frame (stream end?). Exiting ...")
 								break
-							# if frame == None:
-							# 	pass
 							frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 							stframe.image(face_blur(frame))
 
@@ -377,12 +410,9 @@ def main():
 
 						while vf.isOpened():
 							ret, frame = vf.read()
-	    			# if frame is read correctly ret is True
 							if not ret:
 								print("Can't receive frame (stream end?). Exiting ...")
 								break
-							# if frame == None:
-							# 	pass
 							frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 							stframe.image(blur_smile_video(frame))
 
@@ -394,12 +424,9 @@ def main():
 
 						while vf.isOpened():
 							ret, frame = vf.read()
-	    			# if frame is read correctly ret is True
 							if not ret:
 								print("Can't receive frame (stream end?). Exiting ...")
 								break
-							# if frame == None:
-							# 	pass
 							frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 							image,label, conf =nudity_blur(frame, cfg_file_path, weights_file_path, names_file_path)
 							stframe.image(image)
@@ -425,13 +452,50 @@ def main():
 					option_F = st.sidebar.checkbox('Face')
 					option_S = st.sidebar.checkbox('Smile')
 					option_N = st.sidebar.checkbox('Nudity')
-					# option_T = st.sidebar.checkbox('Text')
 
-					# st.info(option_O)
 
 					if st.button('Process'):
 
-						if option_E and option_F:
+						if option_O and any([option_E, option_F, option_S, option_N]):
+							st.warning('Cannot show Original and Masked image simultaneously')
+
+
+						elif option_N and option_E and option_F and option_S:
+							result_image, label, confidence= nudity_blur(image, cfg_file_path, weights_file_path, names_file_path)
+							result_image= face_blur(result_image)
+							st.image(result_image, use_column_width=True)
+							pil_img = Image.fromarray(result_image)
+							st.markdown(get_image_download_link(pil_img), unsafe_allow_html=True)
+
+						elif option_N and option_E and option_F:
+							result_image, label, confidence= nudity_blur(image, cfg_file_path, weights_file_path, names_file_path)
+							result_image= face_blur(result_image)
+							st.image(result_image, use_column_width=True)
+							pil_img = Image.fromarray(result_image)
+							st.markdown(get_image_download_link(pil_img), unsafe_allow_html=True)
+
+						elif option_N and option_F and option_S:
+							result_image, label, confidence= nudity_blur(image, cfg_file_path, weights_file_path, names_file_path)
+							result_image= face_blur(result_image)
+							st.image(result_image, use_column_width=True)
+							pil_img = Image.fromarray(result_image)
+							st.markdown(get_image_download_link(pil_img), unsafe_allow_html=True)
+
+						elif option_E and option_F and option_S:
+							result_image= face_blur(image)
+							st.image(result_image, use_column_width=True)
+							pil_img = Image.fromarray(result_image)
+							st.markdown(get_image_download_link(pil_img), unsafe_allow_html=True)
+
+						elif option_N and option_E and option_S:
+							result_image, label, confidence= nudity_blur(image, cfg_file_path, weights_file_path, names_file_path)
+							result_image= blur_smile(blur_eyes(result_image))
+							st.image(result_image, use_column_width=True)
+							pil_img = Image.fromarray(result_image)
+							st.markdown(get_image_download_link(pil_img), unsafe_allow_html=True)
+
+
+						elif option_E and option_F:
 							result_image= face_blur(image)
 							st.image(result_image, use_column_width=True)
 							pil_img = Image.fromarray(result_image)
@@ -468,6 +532,7 @@ def main():
 							else:
 								x=round(np.mean([float(i) for i in confidence])*100,2)
 								st.info(f'Nudity percentage: {x}%')
+
 						elif option_N and option_S:
 							result_image, label, confidence= nudity_blur(image, cfg_file_path, weights_file_path, names_file_path)
 							result_image = blur_smile(result_image)
@@ -481,26 +546,16 @@ def main():
 								x=round(np.mean([float(i) for i in confidence])*100,2)
 								st.info(f'Nudity percentage: {x}%')
 
-
-
-						elif option_O and option_E:
-							st.warning('Cannot show Original and Masked image simultaneously')
-
-						elif option_O and option_F:
-							st.warning('Cannot show Original and Masked image simultaneously')
-
-						elif option_O and option_N:
-							st.warning('Cannot show Original and Masked image simultaneously')
-
-						elif option_O and option_S:
-							st.warning('Cannot show Original and Masked image simultaneously')
-
+						elif option_E and option_S:
+							result_image = blur_eyes(blur_smile(image))
+							st.image(result_image, use_column_width=True)
+							pil_img = Image.fromarray(result_image)
+							st.markdown(get_image_download_link(pil_img), unsafe_allow_html=True)
 
 
 
 						elif option_O:
 							result_image = image
-							# st.info(file.type)
 							st.image(result_image, use_column_width=True)
 							st.info(f'Oriinal image returned')
 							pil_img = Image.fromarray(result_image)
@@ -512,36 +567,18 @@ def main():
 							pil_img = Image.fromarray(result_image)
 							st.markdown(get_image_download_link(pil_img), unsafe_allow_html=True)
 						
-							# st.info(f'{choice_type} of the image got blurred')
-							# if blur_eyes(image) == 'No Eyes Detected':
-							# 	st.info('No Eyes Detected')
-							# else:
-							# 	st.info(f"{choice_type} of image got blurred")
-						# st.info(blur_eyes(image))	
 						elif option_F:
 							result_image= face_blur(image)
 							st.image(result_image, use_column_width=True)
 							pil_img = Image.fromarray(result_image)
 							st.markdown(get_image_download_link(pil_img), unsafe_allow_html=True)
 						
-							# st.info(f'{choice_type} of the image got blurred')
-							# if face_blur(image) == 'No Face Detected':
-							# 	st.info('No Face Detected')
-							# else:
-							# 	st.info(f"{choice_type} of image got blurred")
-						# st.info(blur_face(image))
 						elif option_S:
 							result_image= blur_smile(image)
 							st.image(result_image, use_column_width=True)
 							pil_img = Image.fromarray(result_image)
 							st.markdown(get_image_download_link(pil_img), unsafe_allow_html=True)
 						
-							# st.info(f'{choice_type} of the image got blurred')
-							# if blur_smile(image) == 'No Smile Detected':
-							# 	st.info('No Smile Detected')
-							# else:
-							# 	st.info(f"{choice_type} of image got blurred")
-						# st.info(blur_smile(image))
 						elif option_N:
 							result_image, label, confidence= nudity_blur(image, cfg_file_path, weights_file_path, names_file_path)
 							st.image(result_image, use_column_width=True)
@@ -553,25 +590,6 @@ def main():
 							else:
 								x=round(np.mean([float(i) for i in confidence])*100,2)
 								st.info(f'Nudity percentage: {x}%')
-
-
-
-
-							
-
-				# 		elif option_O:
-
-				# 			# word = ['keep', 'You']      # list of words to be masked
-				# 			result_image = word_mask(image, word_list)
-				# 			st.image(result_image, use_column_width=True)
-				# 			pil_img = Image.fromarray(result_image)
-				# 			st.markdown(get_image_download_link(pil_img), unsafe_allow_html=True)
-						
-
-
-
-
-					
 
 
 	elif choice =='About':
