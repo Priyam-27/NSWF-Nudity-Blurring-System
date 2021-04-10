@@ -8,49 +8,13 @@ import tempfile
 from io import BytesIO
 import base64
 import requests
+from nudenet import NudeDetector
 
 eye_classifier = cv2.CascadeClassifier(cv2.data.haarcascades+'haarcascade_eye.xml')
 smile_classifier = cv2.CascadeClassifier(cv2.data.haarcascades+'haarcascade_smile.xml')
 
 
-def download_file_from_google_drive(id, destination):
-    URL = "https://docs.google.com/uc?export=download"
 
-    session = requests.Session()
-
-    response = session.get(URL, params = { 'id' : id }, stream = True)
-    token = get_confirm_token(response)
-
-    if token:
-        params = { 'id' : id, 'confirm' : token }
-        response = session.get(URL, params = params, stream = True)
-
-    save_response_content(response, destination)    
-
-def get_confirm_token(response):
-    for key, value in response.cookies.items():
-        if key.startswith('download_warning'):
-            return value
-
-    return None
-
-def save_response_content(response, destination):
-    CHUNK_SIZE = 32768
-
-    with open(destination, "wb") as f:
-        for chunk in response.iter_content(CHUNK_SIZE):
-            if chunk: # filter out keep-alive new chunks
-                f.write(chunk)
-
-id = '1Jz6bmv5AfOq-A0DD_SxevcxSq7VRSEtG'
-destination = 'yolo.weights'
-
-
-download_file_from_google_drive(id, destination)
-
-cfg_file_path='yolov3_last_training.cfg'
-weights_file_path=destination
-names_file_path = 'names.names'
 
 def get_image_download_link(img):
 	"""Generates a link allowing the PIL image to be downloaded
@@ -62,60 +26,19 @@ def get_image_download_link(img):
 	img_str = base64.b64encode(buffered.getvalue()).decode()
 	href = f'<a href="data:file/csv;base64,{img_str}" download="image.png">Download result</a>'
 	return href
-def nudity_blur(img, cfg_file, weight_file, name_file):
-	'''returns the censored image, label for the part and confidence for that part'''
-	classes=[]
-	with open(name_file, 'r') as f:
-		classes=[line.strip() for line in f.readlines()]
-    # give configuration and weight file
-	net = cv2.dnn.readNetFromDarknet(cfg_file, weight_file) 
-	height, width, channels = img.shape
-    # convert image to blob
-	blob = cv2.dnn.blobFromImage(img, 1/255, (416,416), (0,0,0),swapRB=True, crop=False )
-    # feeding blob input to yolo input
-	net.setInput(blob)
-    # getting last layer
-	last_layer = net.getUnconnectedOutLayersNames()
-    # getting output from this layer
-	last_out = net.forward(last_layer)
-    
-	boxes=[]         # for storing coordinates of rectangle
-	confidences=[]   # for storing probabilities
-	class_ids=[]     # for storing the label index
-    
-    
-	for output in last_out:
-		for detection in output:
-			score = detection[4:]                 # probabilities are after 5th element first 4 are cooordinates
-			class_id = np.argmax(score)           # gives index of highest probability
-			confidence = score[class_id]          # gives the highest probability
-			if confidence > 0.05:                  # if the probability of happening is above 20%
-				center_x = int(detection[0] * width)
-				center_y = int(detection[1] * height)
-				w = int(detection[2] * width)
-				h = int(detection[3] * height)
 
-				x = int(center_x - w/2)
-				y = int(center_y - h/2)
-
-				boxes.append([x,y,w,h])
-				confidences.append((float(confidence)))
-				class_ids.append(class_id)
-                
-	labels=[]
-	conf=[]
-	indices= np.array(cv2.dnn.NMSBoxes(boxes, confidences, 0.05,0.4))
-	for i in indices.flatten():
-		x,y,w,h = boxes[i]                              # returns coordinates
-		label = str(classes[class_ids[i]])              # returns label for each image
-		confidence = str(round(confidences[i],2))       # returns confidence for each label
-
-		img[y:y+h, x:x+w]=cv2.medianBlur(img[y:y+h, x:x+w], ksize=201)
-		labels.append(label)
-		conf.append(confidence)
-    
-    
-	return(img, labels, conf)
+def nudity_blur(image):
+	detector = NudeDetector()
+	classes = ['EXPOSED_ANUS', 'EXPOSED_BUTTOCKS', 'COVERED_BREAST_F', 'EXPOSED_BREAST_F',
+           'EXPOSED_GENITALIA_F', 'EXPOSED_GENITALIA_M', 'EXPOSED_BUTTOCKS', 'EXPOSED_BREAST_F', 'EXPOSED_GENITALIA_F',
+           'EXPOSED_GENITALIA_M', 'EXPOSED_BREAST_M']
+	for i in detector.detect(image):
+		if i['label'] in classes:
+#             if i['label'] in []
+			x,y,w,h = i['box']
+			Img = cv2.medianBlur(image[y:h, x:w], ksize=41)
+			image[y:h, x:w] = Img
+	return image
 
 
 
@@ -227,7 +150,7 @@ def main():
 								print("Can't receive frame (stream end?). Exiting ...")
 								break
 							frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-							image,label, conf =nudity_blur(frame, cfg_file_path, weights_file_path, names_file_path)
+							image =nudity_blur(frame)
 							stframe.image(face_blur(frame))
 
 					elif option_N and option_E and option_F:
@@ -240,7 +163,7 @@ def main():
 								print("Can't receive frame (stream end?). Exiting ...")
 								break
 							frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-							image,label, conf =nudity_blur(frame, cfg_file_path, weights_file_path, names_file_path)
+							image =nudity_blur(frame)
 							stframe.image(face_blur(image))
 
 					elif option_N and option_S and option_F:
@@ -253,7 +176,7 @@ def main():
 								print("Can't receive frame (stream end?). Exiting ...")
 								break
 							frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-							image,label, conf =nudity_blur(frame, cfg_file_path, weights_file_path, names_file_path)
+							image=nudity_blur(frame)
 							stframe.image(face_blur(image))
 
 					elif option_N and option_E and option_S:
@@ -266,7 +189,7 @@ def main():
 								print("Can't receive frame (stream end?). Exiting ...")
 								break
 							frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-							image,label, conf =nudity_blur(frame, cfg_file_path, weights_file_path, names_file_path)
+							image =nudity_blur(frame)
 							stframe.image(blur_smile_video(blur_eyes_video(image)))
 
 					elif option_F and option_E and option_S:
@@ -279,7 +202,7 @@ def main():
 								print("Can't receive frame (stream end?). Exiting ...")
 								break
 							frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-							image,label, conf =nudity_blur(frame, cfg_file_path, weights_file_path, names_file_path)
+							image =nudity_blur(frame)
 							stframe.image(face_blur(image))
 
 
@@ -319,7 +242,7 @@ def main():
 								print("Can't receive frame (stream end?). Exiting ...")
 								break
 							frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-							image,label, conf =nudity_blur(frame, cfg_file_path, weights_file_path, names_file_path)
+							image=nudity_blur(frame)
 							stframe.image(face_blur(image))
 
 					elif option_N and option_E:
@@ -332,7 +255,7 @@ def main():
 								print("Can't receive frame (stream end?). Exiting ...")
 								break
 							frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-							image,label, conf =nudity_blur(frame, cfg_file_path, weights_file_path, names_file_path)
+							image=nudity_blur(frame)
 							stframe.image(blur_eyes_video(image))
 
 					elif option_N and option_S:
@@ -345,7 +268,7 @@ def main():
 								print("Can't receive frame (stream end?). Exiting ...")
 								break
 							frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-							image,label, conf =nudity_blur(frame, cfg_file_path, weights_file_path, names_file_path)
+							image =nudity_blur(frame)
 							stframe.image(blur_smile_video(image))	
 
 					elif option_E and option_S:
@@ -425,7 +348,7 @@ def main():
 								print("Can't receive frame (stream end?). Exiting ...")
 								break
 							frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-							image,label, conf =nudity_blur(frame, cfg_file_path, weights_file_path, names_file_path)
+							image =nudity_blur(frame)
 							stframe.image(image)
 							if len(label) == 0:
 								st.info('No Nudity present in the video')
@@ -458,25 +381,28 @@ def main():
 
 
 						elif option_N and option_E and option_F and option_S:
-							result_image, label, confidence= nudity_blur(image, cfg_file_path, weights_file_path, names_file_path)
+							result_image= nudity_blur(image)
 							result_image= face_blur(result_image)
 							st.image(result_image, use_column_width=True)
 							pil_img = Image.fromarray(result_image)
 							st.markdown(get_image_download_link(pil_img), unsafe_allow_html=True)
+							
 
 						elif option_N and option_E and option_F:
-							result_image, label, confidence= nudity_blur(image, cfg_file_path, weights_file_path, names_file_path)
+							result_image= nudity_blur(image)
 							result_image= face_blur(result_image)
 							st.image(result_image, use_column_width=True)
 							pil_img = Image.fromarray(result_image)
 							st.markdown(get_image_download_link(pil_img), unsafe_allow_html=True)
+							
 
 						elif option_N and option_F and option_S:
-							result_image, label, confidence= nudity_blur(image, cfg_file_path, weights_file_path, names_file_path)
+							result_image= nudity_blur(image)
 							result_image= face_blur(result_image)
 							st.image(result_image, use_column_width=True)
 							pil_img = Image.fromarray(result_image)
 							st.markdown(get_image_download_link(pil_img), unsafe_allow_html=True)
+							
 
 						elif option_E and option_F and option_S:
 							result_image= face_blur(image)
@@ -485,12 +411,12 @@ def main():
 							st.markdown(get_image_download_link(pil_img), unsafe_allow_html=True)
 
 						elif option_N and option_E and option_S:
-							result_image, label, confidence= nudity_blur(image, cfg_file_path, weights_file_path, names_file_path)
+							result_image= nudity_blur(image)
 							result_image= blur_smile(blur_eyes(result_image))
 							st.image(result_image, use_column_width=True)
 							pil_img = Image.fromarray(result_image)
 							st.markdown(get_image_download_link(pil_img), unsafe_allow_html=True)
-
+							
 
 						elif option_E and option_F:
 							result_image= face_blur(image)
@@ -505,7 +431,7 @@ def main():
 							st.markdown(get_image_download_link(pil_img), unsafe_allow_html=True)
 
 						elif option_N and option_F:
-							result_image, label, confidence= nudity_blur(image, cfg_file_path, weights_file_path, names_file_path)
+							result_image= nudity_blur(image)
 							result_image = face_blur(result_image)
 							st.image(result_image, use_column_width=True)
 							pil_img = Image.fromarray(result_image)
@@ -518,30 +444,22 @@ def main():
 								st.info(f'Nudity percentage: {x}%')
 
 						elif option_N and option_E:
-							result_image, label, confidence= nudity_blur(image, cfg_file_path, weights_file_path, names_file_path)
+							result_image= nudity_blur(image)
 							result_image = blur_eyes(result_image)
 							st.image(result_image, use_column_width=True)
 							pil_img = Image.fromarray(result_image)
 							st.markdown(get_image_download_link(pil_img), unsafe_allow_html=True)
 						
-							if len(confidence) ==0:
-								st.info('No nudity present in the image.')
-							else:
-								x=round(np.mean([float(i) for i in confidence])*100,2)
-								st.info(f'Nudity percentage: {x}%')
+							
 
 						elif option_N and option_S:
-							result_image, label, confidence= nudity_blur(image, cfg_file_path, weights_file_path, names_file_path)
+							result_image= nudity_blur(image)
 							result_image = blur_smile(result_image)
 							st.image(result_image, use_column_width=True)
 							pil_img = Image.fromarray(result_image)
 							st.markdown(get_image_download_link(pil_img), unsafe_allow_html=True)
 						
-							if len(confidence) ==0:
-								st.info('No nudity present in the image.')
-							else:
-								x=round(np.mean([float(i) for i in confidence])*100,2)
-								st.info(f'Nudity percentage: {x}%')
+							
 
 						elif option_E and option_S:
 							result_image = blur_eyes(blur_smile(image))
@@ -577,16 +495,12 @@ def main():
 							st.markdown(get_image_download_link(pil_img), unsafe_allow_html=True)
 						
 						elif option_N:
-							result_image, label, confidence= nudity_blur(image, cfg_file_path, weights_file_path, names_file_path)
+							result_image= nudity_blur(image)
 							st.image(result_image, use_column_width=True)
 							pil_img = Image.fromarray(result_image)
 							st.markdown(get_image_download_link(pil_img), unsafe_allow_html=True)
 						
-							if len(confidence) ==0:
-								st.info('No nudity present in the image.')
-							else:
-								x=round(np.mean([float(i) for i in confidence])*100,2)
-								st.info(f'Nudity percentage: {x}%')
+							
 
 
 	elif choice =='About':
