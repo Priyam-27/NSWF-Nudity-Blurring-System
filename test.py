@@ -359,7 +359,7 @@ def main():
 
 		elif file_choice == 'Image':
 
-			file=st.file_uploader('Upload Image', type=['jpg', 'jpeg', 'png', 'webp', 'pdf'])
+			file=st.file_uploader('Upload Image', type=['jpg', 'jpeg', 'png', 'webp'])
 
 			if file is not None:
 				if file.type != 'application/pdf':
