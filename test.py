@@ -31,7 +31,7 @@ def nudity_blur(image):
 	detector = NudeDetector()
 	classes = ['EXPOSED_ANUS', 'EXPOSED_BUTTOCKS', 'COVERED_BREAST_F', 'EXPOSED_BREAST_F',
            'EXPOSED_GENITALIA_F', 'EXPOSED_GENITALIA_M', 'EXPOSED_BUTTOCKS', 'EXPOSED_BREAST_F', 'EXPOSED_GENITALIA_F',
-           'EXPOSED_GENITALIA_M', 'EXPOSED_BREAST_M']
+           'EXPOSED_GENITALIA_M', 'EXPOSED_BREAST_M', 'COVERED_GENITALIA_F', 'COVERED_BREAST_F']
 	for i in detector.detect(image):
 		if i['label'] in classes:
 #             if i['label'] in []
