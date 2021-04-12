@@ -282,7 +282,7 @@ def main():
 								break
 							frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 							
-							stframe.image(blur_eyes_video(blur_smile_video(image)))
+							stframe.image(blur_eyes_video(blur_smile_video(frame)))
 
 
 
