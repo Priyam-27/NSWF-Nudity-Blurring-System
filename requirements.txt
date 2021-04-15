@@ -6,4 +6,4 @@ Pillow==8.0.0
 tensorflow==2.0.0
 keras==2.4.3
 requests==2.25.1
-NudeNet
+NudeNet==2.0.9
